@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Voucher Validator</title>
+  <title>Bulk Voucher Validator</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -14,7 +14,8 @@
     
     .section-title { font-weight: 600; color: #374151; margin-bottom: 0.5rem; font-size: 0.875rem; display: block; }
     .radio-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
-    .radio-option { display: flex; align-items: center; gap: 0.5rem; background: #f9fafb; border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .radio-option { display: flex; align-items: center; gap: 0.5rem; background: #f9fafb; border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease; }
+    .radio-option:hover { background: #f3f4f6; border-color: #9ca3af; }
     .flag-img { width: 20px; height: 15px; object-fit: cover; border-radius: 2px; }
 
     .radio-option.disabled { opacity: 0.5; cursor: not-allowed; background: #e5e7eb; border-color: #d1d5db; }
@@ -23,11 +24,13 @@
     .form-group { margin-bottom: 1.25rem; }
     select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; background-color: #fff; }
     textarea { resize: vertical; min-height: 90px; }
+    select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
     
-    button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
     .btn-secondary { background-color: #4b5563; margin-top: 0.75rem; font-size: 0.85rem; padding: 0.4rem; }
+    .btn-secondary:hover { background-color: #374151; }
 
     .progress-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: none; }
     .progress-card.active { display: block; }
@@ -50,18 +53,19 @@
 <body>
 
   <div class="container">
-    <h2>Voucher Validator</h2>
-    <p class="subtitle">Select the context, insert the vouchers and monitor the execution.</p>
+    <h2>Bulk Voucher Validator</h2>
+    <p class="subtitle">Select the context, paste the vouchers in bulk, and monitor the execution.</p>
     
     <form id="voucherForm">
       <div class="form-group">
         <span class="section-title">1. Select the Country:</span>
         <div class="radio-grid">
-          <label class="radio-option"><input type="radio" name="pais" value="ar"> <img src="https://flagcdn.com/w40/ar.png" class="flag-img"> Argentina</label>
-          <label class="radio-option"><input type="radio" name="pais" value="bo"> <img src="https://flagcdn.com/w40/bo.png" class="flag-img"> Bolivia</label>
-          <label class="radio-option"><input type="radio" name="pais" value="cl" checked> <img src="https://flagcdn.com/w40/cl.png" class="flag-img"> Chile</label>
-          <label class="radio-option"><input type="radio" name="pais" value="py"> <img src="https://flagcdn.com/w40/py.png" class="flag-img"> Paraguay</label>
-          <label class="radio-option"><input type="radio" name="pais" value="pe"> <img src="https://flagcdn.com/w40/pe.png" class="flag-img"> Peru</label>
+          <!-- Sem 'checked' padrão. Adicionado 'required' para forçar a escolha -->
+          <label class="radio-option"><input type="radio" name="pais" value="ar" required> <img src="https://flagcdn.com/w40/ar.png" class="flag-img"> Argentina</label>
+          <label class="radio-option"><input type="radio" name="pais" value="bo" required> <img src="https://flagcdn.com/w40/bo.png" class="flag-img"> Bolivia</label>
+          <label class="radio-option"><input type="radio" name="pais" value="cl" required> <img src="https://flagcdn.com/w40/cl.png" class="flag-img"> Chile</label>
+          <label class="radio-option"><input type="radio" name="pais" value="py" required> <img src="https://flagcdn.com/w40/py.png" class="flag-img"> Paraguay</label>
+          <label class="radio-option"><input type="radio" name="pais" value="pe" required> <img src="https://flagcdn.com/w40/pe.png" class="flag-img"> Peru</label>
         </div>
       </div>
 
@@ -86,8 +90,8 @@
       </div>
 
       <div class="form-group">
-        <label for="vouchers" class="section-title">4. Voucher List (one per line):</label>
-        <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2" required></textarea>
+        <label for="vouchers" class="section-title">4. Voucher List (paste any format):</label>
+        <textarea id="vouchers" placeholder="VOUCHER1, VOUCHER2&#10;VOUCHER3" required></textarea>
       </div>
       
       <button type="submit" id="btnSubmit">Start Validation</button>
@@ -150,9 +154,14 @@
       const ambiente = document.getElementById('ambiente').value;
       const tipoValidacao = document.querySelector('input[name="tipoValidacao"]:checked').value;
       const rawText = document.getElementById('vouchers').value;
-      const vouchersList = rawText.split('\n').map(v => v.trim()).filter(v => v.length > 0).join(',');
+      
+      // Divisão inteligente: separa por vírgula, ponto e vírgula, espaço ou quebra de linha
+      const vouchersList = rawText.split(/[\s,;]+/).map(v => v.trim()).filter(v => v.length > 5).join(',');
 
-      if (!vouchersList) return;
+      if (!vouchersList) {
+        alert("Nenhum voucher válido encontrado no campo de texto (mínimo de 6 caracteres).");
+        return;
+      }
 
       btnSubmit.disabled = true;
       hideResults();
@@ -251,7 +260,7 @@
         }
 
         const validVouchers = txtContent.split('\n').map(v => v.trim()).filter(v => v.length > 0);
-        showSuccess(validVouchers);
+        showFinalResult(validVouchers);
       } catch (error) {
         showError('Validation Completed with Warning', `Pipeline ran successfully on Azure, but the result file could not be read: ${error.message}`);
       } finally {
@@ -259,12 +268,13 @@
       }
     }
 
-    function showSuccess(vouchers) {
+    function showFinalResult(vouchers) {
       progressCard.classList.remove('active');
-      resultCard.className = 'result-card active success';
-      resultTitle.innerText = `✅ Validation Completed! (${vouchers.length} Valid Vouchers)`;
-
+      
+      // Inteligência de sucesso ou fracasso dependendo da quantidade de válidos
       if (vouchers.length > 0) {
+        resultCard.className = 'result-card active success';
+        resultTitle.innerText = `✅ Validation Completed! (${vouchers.length} Valid Vouchers)`;
         resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Approved vouchers returned:</p><pre class="output-box">${vouchers.join('\n')}</pre>`;
         btnCopy.style.display = 'block';
         btnCopy.onclick = () => {
@@ -273,6 +283,8 @@
           setTimeout(() => btnCopy.innerText = 'Copy Valid', 2000);
         };
       } else {
+        resultCard.className = 'result-card active error';
+        resultTitle.innerText = `⚠️ Validation Completed! (0 Valid Vouchers)`;
         resultContent.innerHTML = `<p style="margin:0;">No valid vouchers found in this run.</p>`;
         btnCopy.style.display = 'none';
       }
