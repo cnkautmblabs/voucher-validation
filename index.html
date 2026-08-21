@@ -113,7 +113,7 @@
     const AZURE_DEVOPS_ORG = "cinemarkintl";
     const AZURE_DEVOPS_PROJECT = "WebApp";
     const PIPELINE_ID = "146";
-    const PAT_TOKEN = "BzYeuhxY3OiQ4bqFFiAp8tUAiJaN0QN4NaFYNhM4eiGeWpHow5uEJQQJ99CHACAAAAAfPvCOAAASAZDO3Zaf";
+    const PAT_TOKEN = "267De17HdO3g7HgjW8mCGzNkFB6QT55BpUrpe5NtYLYnB9PwoAUQJQQJ99CHACAAAAAfPvCOAAASAZDOY7RD"; // <-- TOKEN NOVO ATUALIZADO
 
     const form = document.getElementById('voucherForm');
     const btnSubmit = document.getElementById('btnSubmit');
@@ -153,7 +153,6 @@
         }
       };
 
-      // Alterado proxy para thingproxy como alternativa caso o corsproxy esteja bloqueando
       const azureUrl = `https://dev.azure.com/${AZURE_DEVOPS_ORG}/${AZURE_DEVOPS_PROJECT}/_apis/pipelines/${PIPELINE_ID}/runs?api-version=7.0`;
       const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(azureUrl);
 
@@ -162,18 +161,17 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json', // <--- Garante que o Azure não envie página HTML
+            'Accept': 'application/json',
             'Authorization': 'Basic ' + btoa(':' + PAT_TOKEN)
           },
           body: JSON.stringify(payload)
         });
 
-        // LÊ O TEXTO BRUTO PRIMEIRO (Evita o erro de JSON)
         const responseText = await response.text();
         
         let data;
         try {
-          data = JSON.parse(responseText); // Tenta converter para objeto
+          data = JSON.parse(responseText);
         } catch (jsonError) {
           throw new Error(`O servidor respondeu com formato inválido.\nStatus HTTP: ${response.status}\nResposta Bruta: ${responseText.substring(0, 150)}...`);
         }
