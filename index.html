@@ -68,6 +68,7 @@
       <div class="form-group">
         <label for="ambiente" class="section-title">2. Select the Environment:</label>
         <select id="ambiente" required>
+          <option value="" disabled selected hidden>Choose environment...</option>
           <option value="qa">QA</option>
           <option value="beta">Beta</option>
         </select>
@@ -80,7 +81,7 @@
             <input type="radio" name="tipoValidacao" value="movie" disabled> Ticket
           </label>
           <label class="radio-option">
-            <input type="radio" name="tipoValidacao" value="candy" checked> Candy
+            <input type="radio" name="tipoValidacao" value="candy" required checked> Candy
           </label>
         </div>
       </div>
@@ -97,7 +98,7 @@
     </form>
 
     <div id="progressCard" class="progress-card">
-      <div class="progress-title">⚡ Validating via Cloudflare Edge...</div>
+      <div class="progress-title">⚡ Validating...</div>
       <div class="progress-bar-bg"><div class="progress-bar-fill"></div></div>
       <div id="statusDetail" style="font-size: 0.8rem; color: #4b5563;">Processing requests...</div>
     </div>
@@ -123,19 +124,15 @@
     const resultContent = document.getElementById('resultContent');
     const btnCopy = document.getElementById('btnCopy');
     
-    // Elementos do novo contador
     const txtVouchers = document.getElementById('vouchers');
     const badgeCount = document.getElementById('voucherCount');
 
-    // Função que processa, limpa e retorna o array de vouchers
     function getCleanVouchersList(rawText) {
       const cleanText = rawText.replace(/(\d{3,})([A-Za-z]{2,})/g, '$1 $2');
       let arr = cleanText.split(/[\s,;]+/).map(v => v.trim()).filter(v => v.length > 5);
-      // Retorna apenas códigos únicos (remove duplicados colados por engano)
       return [...new Set(arr)];
     }
 
-    // 1. Atualiza o contador em tempo real ao digitar ou colar
     txtVouchers.addEventListener('input', () => {
       const list = getCleanVouchersList(txtVouchers.value);
       badgeCount.innerText = `${list.length} identified`;
@@ -146,21 +143,30 @@
       }
     });
 
-    // 2. Auto-formatação mágica quando o usuário clica fora da caixa de texto (blur)
     txtVouchers.addEventListener('blur', () => {
       const list = getCleanVouchersList(txtVouchers.value);
       if (list.length > 0) {
-        txtVouchers.value = list.join('\n'); // Organiza tudo em "um por linha" automaticamente
+        txtVouchers.value = list.join('\n');
       }
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const pais = document.querySelector('input[name="pais"]:checked').value;
-      const ambiente = document.getElementById('ambiente').value;
-      const vouchersList = getCleanVouchersList(txtVouchers.value);
+      const selectedPais = document.querySelector('input[name="pais"]:checked');
+      if (!selectedPais) {
+        alert("Please select a country.");
+        return;
+      }
+      const pais = selectedPais.value;
 
+      const ambiente = document.getElementById('ambiente').value;
+      if (!ambiente) {
+        alert("Please select an environment.");
+        return;
+      }
+
+      const vouchersList = getCleanVouchersList(txtVouchers.value);
       if (vouchersList.length === 0) {
         alert("No valid vouchers found in the text field.");
         return;
