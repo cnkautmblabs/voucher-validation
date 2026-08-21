@@ -45,9 +45,7 @@
       vertical-align: middle;
       margin-right: 6px;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .result-box { margin-top: 1.5rem; padding: 1rem; border-radius: 6px; display: none; font-size: 0.875rem; }
     .result-box.active { display: block; }
@@ -68,11 +66,8 @@
       <div class="form-group">
         <span class="section-title">1. Selecione o País:</span>
         <div class="radio-grid">
-          <label class="radio-option"><input type="radio" name="pais" value="ar"> <img src="https://flagcdn.com/w40/ar.png" class="flag-img" alt="Argentina"> Argentina</label>
-          <label class="radio-option"><input type="radio" name="pais" value="pe"> <img src="https://flagcdn.com/w40/pe.png" class="flag-img" alt="Peru"> Peru</label>
-          <label class="radio-option"><input type="radio" name="pais" value="py" checked> <img src="https://flagcdn.com/w40/py.png" class="flag-img" alt="Paraguay"> Paraguay</label>
-          <label class="radio-option"><input type="radio" name="pais" value="cl"> <img src="https://flagcdn.com/w40/cl.png" class="flag-img" alt="Chile"> Chile</label>
-          <label class="radio-option"><input type="radio" name="pais" value="bo"> <img src="https://flagcdn.com/w40/bo.png" class="flag-img" alt="Bolivia"> Bolivia</label>
+          <label class="radio-option"><input type="radio" name="pais" value="cl" checked> <img src="https://flagcdn.com/w40/cl.png" class="flag-img" alt="Chile"> Chile</label>
+          <label class="radio-option"><input type="radio" name="pais" value="py"> <img src="https://flagcdn.com/w40/py.png" class="flag-img" alt="Paraguay"> Paraguay</label>
         </div>
       </div>
 
@@ -87,8 +82,8 @@
       <div class="form-group">
         <span class="section-title">3. O que você quer validar?</span>
         <div class="radio-grid">
-          <label class="radio-option"><input type="radio" name="tipoValidacao" value="candy"> Candy</label>
           <label class="radio-option"><input type="radio" name="tipoValidacao" value="movie" checked> Movie</label>
+          <label class="radio-option"><input type="radio" name="tipoValidacao" value="candy"> Candy</label>
         </div>
       </div>
 
@@ -140,13 +135,14 @@
       statusText.innerHTML = `<span class="spinner spinner-blue"></span> Processando vouchers...`;
       outputData.innerText = 'Conectando ao proxy seguro...';
 
+      // Payload mapeado exatamente para os parâmetros do seu arquivo YAML
       const payload = {
         resources: { repositories: { self: { refName: 'refs/heads/main' } } },
         templateParameters: {
-          pais: pais,
-          ambiente: ambiente,
-          validacao: tipoValidacao,
-          vouchers: vouchersList
+          target_country: pais,
+          target_env: ambiente,
+          voucher_type: tipoValidacao,
+          voucher_list: vouchersList
         }
       };
 
