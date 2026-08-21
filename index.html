@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Automação de Vouchers</title>
-  <!-- Biblioteca para descompactar relatórios ZIP no navegador -->
+  <title>Voucher Validator</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -18,6 +17,10 @@
     .radio-option { display: flex; align-items: center; gap: 0.5rem; background: #f9fafb; border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
     .flag-img { width: 20px; height: 15px; object-fit: cover; border-radius: 2px; }
 
+    /* Estilo para opção desabilitada */
+    .radio-option.disabled { opacity: 0.5; cursor: not-allowed; background: #e5e7eb; border-color: #d1d5db; }
+    .radio-option.disabled input { cursor: not-allowed; }
+
     .form-group { margin-bottom: 1.25rem; }
     select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; background-color: #fff; }
     textarea { resize: vertical; min-height: 90px; }
@@ -25,21 +28,20 @@
     button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-    .btn-secondary { background-color: #4b5563; margin-top: 0.5rem; font-size: 0.875rem; padding: 0.5rem; }
-    .btn-secondary:hover { background-color: #374151; }
+    .btn-secondary { background-color: #4b5563; margin-top: 0.75rem; font-size: 0.85rem; padding: 0.4rem; }
 
-    /* Estilos do Loading Interativo */
+    /* Componente de Progresso Vivo */
     .progress-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: none; }
     .progress-card.active { display: block; }
     .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-    .progress-title { font-weight: 600; color: #1e40af; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; }
+    .progress-title { font-weight: 600; color: #1e40af; font-size: 0.95rem; }
     .timer { font-family: monospace; background: #dbeafe; color: #1e40af; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; }
     
     .progress-bar-bg { background: #dbeafe; border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 0.75rem; }
     .progress-bar-fill { background: #2563eb; height: 100%; width: 100%; animation: pulse 1.5s ease-in-out infinite; }
-    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-    /* Resultados */
+    /* Card de Resultado Final */
     .result-card { margin-top: 1.5rem; padding: 1.25rem; border-radius: 8px; display: none; }
     .result-card.active { display: block; }
     .result-card.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
@@ -51,12 +53,12 @@
 <body>
 
   <div class="container">
-    <h2>Executar Pipeline de Vouchers</h2>
-    <p class="subtitle">Selecione o contexto, insira os vouchers e acompanhe os resultados em tempo real.</p>
+    <h2>Voucher Validator</h2>
+    <p class="subtitle">Select the context, insert the vouchers and monitor the execution.</p>
     
     <form id="voucherForm">
       <div class="form-group">
-        <span class="section-title">1. Selecione o País:</span>
+        <span class="section-title">1. Select the Country:</span>
         <div class="radio-grid">
           <label class="radio-option"><input type="radio" name="pais" value="cl" checked> <img src="https://flagcdn.com/w40/cl.png" class="flag-img"> Chile</label>
           <label class="radio-option"><input type="radio" name="pais" value="py"> <img src="https://flagcdn.com/w40/py.png" class="flag-img"> Paraguay</label>
@@ -64,50 +66,52 @@
       </div>
 
       <div class="form-group">
-        <label for="ambiente" class="section-title">2. Selecione o Ambiente:</label>
+        <label for="ambiente" class="section-title">2. Select the Environment:</label>
         <select id="ambiente" required>
-          <option value="qa">qa</option>
-          <option value="beta">beta</option>
+          <option value="qa">QA</option>
+          <option value="beta">Beta</option>
         </select>
       </div>
 
       <div class="form-group">
-        <span class="section-title">3. O que você quer validar?</span>
+        <span class="section-title">3. What do you want to validate?</span>
         <div class="radio-grid">
-          <label class="radio-option"><input type="radio" name="tipoValidacao" value="movie" checked> Movie</label>
-          <label class="radio-option"><input type="radio" name="tipoValidacao" value="candy"> Candy</label>
+          <label class="radio-option disabled">
+            <input type="radio" name="tipoValidacao" value="movie" disabled> Ticket
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="tipoValidacao" value="candy" checked> Candy
+          </label>
         </div>
       </div>
 
       <div class="form-group">
-        <label for="vouchers" class="section-title">4. Lista de Vouchers (um por linha):</label>
+        <label for="vouchers" class="section-title">4. Voucher List (one per line):</label>
         <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2" required></textarea>
       </div>
       
-      <button type="submit" id="btnSubmit">Iniciar Validação</button>
+      <button type="submit" id="btnSubmit">Start Validation</button>
     </form>
 
     <!-- Card de Acompanhamento Interativo -->
     <div id="progressCard" class="progress-card">
       <div class="progress-header">
-        <div class="progress-title">
-          <span>⏳ Executando testes Playwright no Azure...</span>
-        </div>
+        <div class="progress-title">⏳ Running automation on Azure...</div>
         <span id="timer" class="timer">00:00</span>
       </div>
       <div class="progress-bar-bg"><div class="progress-bar-fill"></div></div>
       <div style="font-size: 0.8rem; color: #4b5563; display: flex; justify-content: space-between; align-items: center;">
-        <span id="statusDetail">Iniciando máquina virtual...</span>
-        <a id="azureLink" href="#" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">Ver no Azure ↗</a>
+        <span id="statusDetail">Starting test container...</span>
+        <a id="azureLink" href="#" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">View on Azure ↗</a>
       </div>
-      <button id="btnCancel" type="button" class="btn-secondary">Cancelar Acompanhamento Local</button>
+      <button id="btnCancel" type="button" class="btn-secondary">Cancel On-Screen Tracking</button>
     </div>
 
     <!-- Card de Resultado Final -->
     <div id="resultCard" class="result-card">
       <div class="result-header">
         <span id="resultTitle"></span>
-        <button id="btnCopy" style="width: auto; padding: 0.25rem 0.75rem; font-size: 0.75rem; display: none;">Copiar Válidos</button>
+        <button id="btnCopy" style="width: auto; padding: 0.25rem 0.75rem; font-size: 0.75rem; display: none;">Copy Valid</button>
       </div>
       <div id="resultContent"></div>
     </div>
@@ -133,7 +137,6 @@
     let timerInterval = null;
     let startTime = null;
 
-    // Tenta recuperar execução ativa ao abrir ou atualizar a página
     window.addEventListener('DOMContentLoaded', () => {
       const savedState = localStorage.getItem(STORAGE_KEY);
       if (savedState) {
@@ -186,12 +189,13 @@
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
           resumeExecution(state);
         } else {
-          throw new Error(data.message || 'Falha ao acionar a pipeline.');
+          const errDetail = data.message || (typeof data === 'object' ? JSON.stringify(data) : data);
+          throw new Error(`Error (${response.status}): ${errDetail}`);
         }
 
       } catch (error) {
         btnSubmit.disabled = false;
-        showError('Erro ao Disparar', error.message);
+        showError('Submission Failed', error.message);
       }
     });
 
@@ -202,10 +206,8 @@
       startTime = state.startTime;
 
       startTimer();
-      
-      // Consulta o Azure a cada 5 segundos
       pollInterval = setInterval(() => checkStatus(state), 5000);
-      checkStatus(state); // Primeira checagem imediata
+      checkStatus(state);
     }
 
     async function checkStatus(state) {
@@ -214,21 +216,21 @@
         const data = await response.json();
 
         if (data.state === 'inProgress') {
-          statusDetail.innerText = 'Rodando testes do Playwright no servidor...';
+          statusDetail.innerText = 'Running Playwright tests on server...';
         } else if (data.state === 'completed') {
           clearInterval(pollInterval);
           clearInterval(timerInterval);
-          statusDetail.innerText = 'Processando relatório final...';
+          statusDetail.innerText = 'Processing and downloading results...';
 
           if (data.result === 'succeeded' || data.result === 'partiallySucceeded') {
             await fetchAndDisplayArtifact(state);
           } else {
-            showError('Execução Falhou', `A pipeline no Azure finalizou com status: ${data.result}`);
+            showError('Execution Failed', `The pipeline finished with status: ${data.result}`);
             clearState();
           }
         }
       } catch (err) {
-        statusDetail.innerText = 'Aguardando resposta da API...';
+        statusDetail.innerText = 'Waiting for Azure update...';
       }
     }
 
@@ -237,12 +239,11 @@
       try {
         const response = await fetch(`${WORKER_URL}?runId=${state.runId}&artifactName=${artifactName}`);
         
-        if (!response.ok) throw new Error('Relatório de saída não encontrado nos artefatos.');
+        if (!response.ok) throw new Error('The report is not ready for download yet.');
 
         const blob = await response.arrayBuffer();
         const zip = await JSZip.loadAsync(blob);
         
-        // Procura por qualquer arquivo .txt gerado
         let txtContent = "";
         for (const filename of Object.keys(zip.files)) {
           if (filename.endsWith('.txt')) {
@@ -252,10 +253,9 @@
         }
 
         const validVouchers = txtContent.split('\n').map(v => v.trim()).filter(v => v.length > 0);
-        
         showSuccess(validVouchers);
       } catch (error) {
-        showError('Validação Concluída com Alerta', `A automação rodou, mas não foi possível ler o arquivo .txt: ${error.message}`);
+        showError('Validation Completed with Warning', `Pipeline ran successfully on Azure, but the result file could not be read: ${error.message}`);
       } finally {
         clearState();
       }
@@ -264,18 +264,18 @@
     function showSuccess(vouchers) {
       progressCard.classList.remove('active');
       resultCard.className = 'result-card active success';
-      resultTitle.innerText = `✅ Validação Concluída! (${vouchers.length} Vouchers Válidos)`;
+      resultTitle.innerText = `✅ Validation Completed! (${vouchers.length} Valid Vouchers)`;
 
       if (vouchers.length > 0) {
-        resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Abaixo estão os vouchers válidos encontrados:</p><pre class="output-box">${vouchers.join('\n')}</pre>`;
+        resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Approved vouchers returned:</p><pre class="output-box">${vouchers.join('\n')}</pre>`;
         btnCopy.style.display = 'block';
         btnCopy.onclick = () => {
           navigator.clipboard.writeText(vouchers.join('\n'));
-          btnCopy.innerText = 'Copiado!';
-          setTimeout(() => btnCopy.innerText = 'Copiar Válidos', 2000);
+          btnCopy.innerText = 'Copied!';
+          setTimeout(() => btnCopy.innerText = 'Copy Valid', 2000);
         };
       } else {
-        resultContent.innerHTML = `<p style="margin:0;">Nenhum voucher válido foi retornado nesta execução.</p>`;
+        resultContent.innerHTML = `<p style="margin:0;">No valid vouchers found in this run.</p>`;
         btnCopy.style.display = 'none';
       }
     }
@@ -311,7 +311,7 @@
     }
 
     btnCancel.addEventListener('click', () => {
-      if (confirm('Deseja parar de acompanhar esta execução na tela? (A pipeline continuará rodando no Azure)')) {
+      if (confirm('Do you want to hide the progress from the screen? The pipeline will continue running on Azure.')) {
         clearState();
       }
     });
