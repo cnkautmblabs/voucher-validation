@@ -136,20 +136,36 @@
       btnSubmit.disabled = true;
       resultCard.classList.remove('active');
       progressCard.classList.add('active');
-      statusDetail.innerText = `Validating ${vouchersList.length} voucher(s)...`;
+
+      // Processamento em lotes de 30 para respeitar os limites do Cloudflare Worker
+      const chunkSize = 30;
+      const chunks = [];
+      for (let i = 0; i < vouchersList.length; i += chunkSize) {
+        chunks.push(vouchersList.slice(i, i + chunkSize));
+      }
+
+      let allValidVouchers = [];
 
       try {
-        const response = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ country: pais, env: ambiente, vouchers: vouchersList })
-        });
+        for (let i = 0; i < chunks.length; i++) {
+          statusDetail.innerText = `Validating batch ${i + 1} of ${chunks.length} (${chunks[i].length} vouchers)...`;
 
-        const data = await response.json();
+          const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ country: pais, env: ambiente, vouchers: chunks[i] })
+          });
 
-        if (!response.ok) throw new Error(data.message || 'Server proxy error.');
+          const data = await response.json();
 
-        showFinalResult(data.validVouchers);
+          if (!response.ok) throw new Error(data.message || 'Server proxy error.');
+
+          if (data.validVouchers) {
+            allValidVouchers = allValidVouchers.concat(data.validVouchers);
+          }
+        }
+
+        showFinalResult(allValidVouchers);
 
       } catch (error) {
         showError('Validation Failed', error.message);
