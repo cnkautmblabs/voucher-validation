@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Automação de Vouchers</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; }
+    .container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; max-width: 580px; }
+    h2 { margin-top: 0; color: #111827; font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p.subtitle { color: #6b7280; font-size: 0.875rem; margin-bottom: 1.5rem; }
+    
+    .section-title { font-weight: 600; color: #374151; margin-bottom: 0.5rem; font-size: 0.875rem; display: block; }
+    
+    /* Grupo de Radio Buttons com Bandeiras em Imagem */
+    .radio-grid { 
+      display: flex; 
+      flex-wrap: wrap; 
+      gap: 0.5rem; 
+      margin-bottom: 1.25rem; 
+    }
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+    .radio-option:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+    }
+    .radio-option input[type="radio"] {
+      margin: 0;
+      cursor: pointer;
+      accent-color: #2563eb;
+    }
+
+    /* Estilo para ajustar as bandeiras */
+    .flag-img {
+      width: 20px;
+      height: 15px;
+      object-fit: cover;
+      border-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+
+    .form-group { margin-bottom: 1.25rem; }
+    select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; background-color: #fff; }
+    select { cursor: pointer; }
+    textarea { resize: vertical; min-height: 100px; }
+    select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
+    
+    button { width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background-color: #1d4ed8; }
+    button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    
+    .result-box { margin-top: 1.5rem; padding: 1rem; border-radius: 6px; display: none; font-size: 0.875rem; }
+    .result-box.active { display: block; }
+    .result-box.loading { background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .result-box.success { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .result-box.error { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    pre { white-space: pre-wrap; word-break: break-all; margin: 0.5rem 0 0 0; font-family: monospace; background: rgba(0, 0, 0, 0.04); padding: 0.5rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Executar Pipeline de Vouchers</h2>
+    <p class="subtitle">Selecione o contexto, insira os vouchers e acione a automação no Azure.</p>
+    
+    <form id="voucherForm">
+      
+      <!-- Radio Buttons com imagens de bandeiras reais -->
+      <div class="form-group">
+        <span class="section-title">Selecione o País:</span>
+        <div class="radio-grid">
+          <label class="radio-option">
+            <input type="radio" name="pais" value="AR" checked>
+            <img src="https://flagcdn.com/w40/ar.png" class="flag-img" alt="Argentina">
+            Argentina
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="pais" value="PE">
+            <img src="https://flagcdn.com/w40/pe.png" class="flag-img" alt="Peru">
+            Peru
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="pais" value="PY">
+            <img src="https://flagcdn.com/w40/py.png" class="flag-img" alt="Paraguay">
+            Paraguay
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="pais" value="CL">
+            <img src="https://flagcdn.com/w40/cl.png" class="flag-img" alt="Chile">
+            Chile
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="pais" value="BO">
+            <img src="https://flagcdn.com/w40/bo.png" class="flag-img" alt="Bolivia">
+            Bolivia
+          </label>
+        </div>
+      </div>
+
+      <!-- Seleção de Ambiente -->
+      <div class="form-group">
+        <label for="ambiente" class="section-title">Ambiente:</label>
+        <select id="ambiente" required>
+          <option value="QA">QA</option>
+          <option value="BETA">BETA</option>
+        </select>
+      </div>
+
+      <!-- Entrada de Vouchers -->
+      <div class="form-group">
+        <label for="vouchers" class="section-title">Vouchers (um por linha):</label>
+        <textarea id="vouchers" placeholder="VOUCHER-2026-A&#10;VOUCHER-2026-B" required></textarea>
+      </div>
+      
+      <button type="submit" id="btnSubmit">Processar Vouchers</button>
+    </form>
+
+    <div id="resultBox" class="result-box">
+      <strong id="statusText"></strong>
+      <pre id="outputData"></pre>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('voucherForm');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const resultBox = document.getElementById('resultBox');
+    const statusText = document.getElementById('statusText');
+    const outputData = document.getElementById('outputData');
+
+    const AZURE_API_URL = '/api/processar-vouchers';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const paisSelecionado = document.querySelector('input[name="pais"]:checked').value;
+      const ambiente = document.getElementById('ambiente').value;
+      const rawText = document.getElementById('vouchers').value;
+      const vouchersList = rawText.split('\n').map(v => v.trim()).filter(v => v.length > 0);
+
+      if (vouchersList.length === 0) return;
+
+      const payload = {
+        pais: paisSelecionado,
+        ambiente,
+        vouchers: vouchersList
+      };
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerText = 'Executando Playwright...';
+      resultBox.className = 'result-box loading active';
+      statusText.innerText = `⏳ Processando para ${paisSelecionado} no ambiente ${ambiente}...`;
+      outputData.innerText = 'Aguardando resposta do servidor...';
+
+      try {
+        /* 
+        // INTEGRAÇÃO REAL COM AZURE:
+        const response = await fetch(AZURE_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        */
+
+        // SIMULAÇÃO TEMPORÁRIA LOCAL
+        await new Promise(resolve => setTimeout(resolve, 2500)); 
+        const data = {
+          status: "sucesso",
+          contexto: { pais: paisSelecionado, ambiente },
+          total_processados: vouchersList.length,
+          detalhes: vouchersList.map(v => ({ voucher: v, status: "Aprovado", desconto: "15%" }))
+        };
+
+        resultBox.className = 'result-box success active';
+        statusText.innerText = '✅ Pipeline executada com sucesso!';
+        outputData.innerText = JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        resultBox.className = 'result-box error active';
+        statusText.innerText = '❌ Erro ao conectar à pipeline!';
+        outputData.innerText = error.message || 'Ocorreu um erro inesperado.';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'Processar Vouchers';
+      }
+    });
+  </script>
+</body>
+</html>
