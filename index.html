@@ -34,7 +34,9 @@
 
     .progress-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: none; }
     .progress-card.active { display: block; }
-    .progress-title { font-weight: 600; color: #1e40af; font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .progress-title { font-weight: 600; color: #1e40af; font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .timer-badge { background: #2563eb; color: white; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-family: monospace; }
+    
     .progress-bar-bg { background: #dbeafe; border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 0.5rem; }
     .progress-bar-fill { background: #2563eb; height: 100%; width: 100%; animation: pulse 1.2s ease-in-out infinite; }
     @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
@@ -94,11 +96,14 @@
         <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2&#10;VOUCHER3" required></textarea>
       </div>
       
-      <button type="submit" id="btnSubmit">Start Instant Validation</button>
+      <button type="submit" id="btnSubmit">Start Validation</button>
     </form>
 
     <div id="progressCard" class="progress-card">
-      <div class="progress-title">⚡ Validating...</div>
+      <div class="progress-title">
+        <span>⚡ Validating...</span>
+        <span id="liveTimer" class="timer-badge">0.0s</span>
+      </div>
       <div class="progress-bar-bg"><div class="progress-bar-fill"></div></div>
       <div id="statusDetail" style="font-size: 0.8rem; color: #4b5563;">Processing requests...</div>
     </div>
@@ -119,6 +124,7 @@
     const btnSubmit = document.getElementById('btnSubmit');
     const progressCard = document.getElementById('progressCard');
     const statusDetail = document.getElementById('statusDetail');
+    const liveTimer = document.getElementById('liveTimer');
     const resultCard = document.getElementById('resultCard');
     const resultTitle = document.getElementById('resultTitle');
     const resultContent = document.getElementById('resultContent');
@@ -126,6 +132,9 @@
     
     const txtVouchers = document.getElementById('vouchers');
     const badgeCount = document.getElementById('voucherCount');
+
+    let timerInterval = null;
+    let startTime = 0;
 
     function getCleanVouchersList(rawText) {
       const cleanText = rawText.replace(/(\d{3,})([A-Za-z]{2,})/g, '$1 $2');
@@ -176,6 +185,13 @@
       resultCard.classList.remove('active');
       progressCard.classList.add('active');
 
+      startTime = Date.now();
+      liveTimer.innerText = "0.0s";
+      timerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        liveTimer.innerText = `${elapsed}s`;
+      }, 100);
+
       const chunkSize = 15;
       const chunks = [];
       for (let i = 0; i < vouchersList.length; i += chunkSize) {
@@ -203,21 +219,23 @@
           }
         }
 
-        showFinalResult(allValidVouchers);
+        const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        showFinalResult(allValidVouchers, totalElapsed);
 
       } catch (error) {
         showError('Validation Failed', error.message);
       } finally {
+        clearInterval(timerInterval);
         btnSubmit.disabled = false;
         progressCard.classList.remove('active');
       }
     });
 
-    function showFinalResult(vouchers) {
+    function showFinalResult(vouchers, totalTime) {
       resultCard.classList.add('active');
       if (vouchers.length > 0) {
         resultCard.className = 'result-card active success';
-        resultTitle.innerText = `✅ Validation Completed! (${vouchers.length} Valid Vouchers)`;
+        resultTitle.innerText = `✅ Validation Completed in ${totalTime}s! (${vouchers.length} Valid Vouchers)`;
         resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Approved vouchers returned:</p><pre class="output-box">${vouchers.join('\n')}</pre>`;
         btnCopy.style.display = 'block';
         btnCopy.onclick = () => {
@@ -227,7 +245,7 @@
         };
       } else {
         resultCard.className = 'result-card active error';
-        resultTitle.innerText = `⚠️ Validation Completed! (0 Valid Vouchers)`;
+        resultTitle.innerText = `⚠️ Validation Completed in ${totalTime}s! (0 Valid Vouchers)`;
         resultContent.innerHTML = `<p style="margin:0;">No valid vouchers found in this run.</p>`;
         btnCopy.style.display = 'none';
       }
