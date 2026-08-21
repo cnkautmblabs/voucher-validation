@@ -65,7 +65,6 @@
     
     <form id="voucherForm">
       
-      <!-- 1. Seleção de País -->
       <div class="form-group">
         <span class="section-title">1. Selecione o País:</span>
         <div class="radio-grid">
@@ -77,7 +76,6 @@
         </div>
       </div>
 
-      <!-- 2. Seleção de Ambiente -->
       <div class="form-group">
         <label for="ambiente" class="section-title">2. Selecione o Ambiente:</label>
         <select id="ambiente" required>
@@ -86,7 +84,6 @@
         </select>
       </div>
 
-      <!-- 3. Tipo de Validação -->
       <div class="form-group">
         <span class="section-title">3. O que você quer validar?</span>
         <div class="radio-grid">
@@ -95,7 +92,6 @@
         </div>
       </div>
 
-      <!-- 4. Entrada de Vouchers -->
       <div class="form-group">
         <label for="vouchers" class="section-title">4. Lista de Vouchers (um por linha):</label>
         <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2" required></textarea>
@@ -114,10 +110,7 @@
   </div>
 
   <script>
-    const AZURE_DEVOPS_ORG = "cinemarkintl";
-    const AZURE_DEVOPS_PROJECT = "WebApp";
-    const PIPELINE_ID = "146";
-    const PAT_TOKEN = "267De17HdO3g7HgjW8mCGzNkFB6QT55BpUrpe5NtYLYnB9PwoAUQJQQJ99CHACAAAAAfPvCOAAASAZDOY7RD";
+    const WORKER_URL = "https://proxy-vouchers.cnk-aut-mblabs.workers.dev/";
 
     const form = document.getElementById('voucherForm');
     const btnSubmit = document.getElementById('btnSubmit');
@@ -145,7 +138,7 @@
       
       resultBox.className = 'result-box loading active';
       statusText.innerHTML = `<span class="spinner spinner-blue"></span> Processando vouchers...`;
-      outputData.innerText = 'Conectando à API do Azure...';
+      outputData.innerText = 'Conectando ao proxy seguro...';
 
       const payload = {
         resources: { repositories: { self: { refName: 'refs/heads/main' } } },
@@ -157,35 +150,21 @@
         }
       };
 
-      const azureUrl = `https://dev.azure.com/${AZURE_DEVOPS_ORG}/${AZURE_DEVOPS_PROJECT}/_apis/pipelines/${PIPELINE_ID}/runs?api-version=7.0`;
-      const proxyUrl = `https://thingproxy.freeboard.io/fetch/${azureUrl}`;
-
       try {
-        const response = await fetch(proxyUrl, {
+        const response = await fetch(WORKER_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Basic ' + btoa(':' + PAT_TOKEN)
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
-        const responseText = await response.text();
-        
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (jsonError) {
-          throw new Error(`Resposta fora do formato JSON.\nStatus: ${response.status}\nConteúdo: ${responseText.substring(0, 150)}...`);
-        }
+        const data = await response.json();
 
         if (response.ok) {
           resultBox.className = 'result-box success active';
           statusText.innerText = '✅ Pipeline acionada com sucesso!';
           outputData.innerHTML = `ID da Execução: ${data.id}\nStatus: ${data.state}\n\n👉 <a href="${data._links.web.href}" target="_blank" style="color:#15803d; font-weight:bold;">Acompanhar no Azure DevOps</a>`;
         } else {
-          throw new Error(`Erro no Azure (${response.status}): ${data.message || JSON.stringify(data)}`);
+          throw new Error(`Erro (${response.status}): ${data.message || JSON.stringify(data)}`);
         }
 
       } catch (error) {
