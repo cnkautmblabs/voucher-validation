@@ -65,39 +65,17 @@
     
     <form id="voucherForm">
       
-      <!-- 1. Seleção de País -->
       <div class="form-group">
         <span class="section-title">1. Selecione o País:</span>
         <div class="radio-grid">
-          <label class="radio-option">
-            <input type="radio" name="pais" value="ar">
-            <img src="https://flagcdn.com/w40/ar.png" class="flag-img" alt="Argentina">
-            Argentina
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="pais" value="pe">
-            <img src="https://flagcdn.com/w40/pe.png" class="flag-img" alt="Peru">
-            Peru
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="pais" value="py" checked>
-            <img src="https://flagcdn.com/w40/py.png" class="flag-img" alt="Paraguay">
-            Paraguay
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="pais" value="cl">
-            <img src="https://flagcdn.com/w40/cl.png" class="flag-img" alt="Chile">
-            Chile
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="pais" value="bo">
-            <img src="https://flagcdn.com/w40/bo.png" class="flag-img" alt="Bolivia">
-            Bolivia
-          </label>
+          <label class="radio-option"><input type="radio" name="pais" value="ar"> <img src="https://flagcdn.com/w40/ar.png" class="flag-img" alt="Argentina"> Argentina</label>
+          <label class="radio-option"><input type="radio" name="pais" value="pe"> <img src="https://flagcdn.com/w40/pe.png" class="flag-img" alt="Peru"> Peru</label>
+          <label class="radio-option"><input type="radio" name="pais" value="py" checked> <img src="https://flagcdn.com/w40/py.png" class="flag-img" alt="Paraguay"> Paraguay</label>
+          <label class="radio-option"><input type="radio" name="pais" value="cl"> <img src="https://flagcdn.com/w40/cl.png" class="flag-img" alt="Chile"> Chile</label>
+          <label class="radio-option"><input type="radio" name="pais" value="bo"> <img src="https://flagcdn.com/w40/bo.png" class="flag-img" alt="Bolivia"> Bolivia</label>
         </div>
       </div>
 
-      <!-- 2. Seleção de Ambiente -->
       <div class="form-group">
         <label for="ambiente" class="section-title">2. Selecione o Ambiente:</label>
         <select id="ambiente" required>
@@ -106,20 +84,14 @@
         </select>
       </div>
 
-      <!-- 3. Tipo de Validação -->
       <div class="form-group">
         <span class="section-title">3. O que você quer validar?</span>
         <div class="radio-grid">
-          <label class="radio-option">
-            <input type="radio" name="tipoValidacao" value="candy"> Candy
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="tipoValidacao" value="movie" checked> Movie
-          </label>
+          <label class="radio-option"><input type="radio" name="tipoValidacao" value="candy"> Candy</label>
+          <label class="radio-option"><input type="radio" name="tipoValidacao" value="movie" checked> Movie</label>
         </div>
       </div>
 
-      <!-- 4. Entrada de Vouchers -->
       <div class="form-group">
         <label for="vouchers" class="section-title">4. Lista de Vouchers (um por linha):</label>
         <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2" required></textarea>
@@ -168,15 +140,11 @@
       btnText.innerText = 'Disparando Pipeline...';
       
       resultBox.className = 'result-box loading active';
-      statusText.innerHTML = `<span class="spinner spinner-blue"></span> Processando vouchers para [${pais.toUpperCase()}] em [${ambiente}]...`;
-      outputData.innerText = 'Enviando requisição ao Azure DevOps...';
+      statusText.innerHTML = `<span class="spinner spinner-blue"></span> Processando vouchers...`;
+      outputData.innerText = 'Conectando à API...';
 
       const payload = {
-        resources: {
-          repositories: {
-            self: { refName: 'refs/heads/main' }
-          }
-        },
+        resources: { repositories: { self: { refName: 'refs/heads/main' } } },
         templateParameters: {
           pais: pais,
           ambiente: ambiente,
@@ -185,6 +153,7 @@
         }
       };
 
+      // Alterado proxy para thingproxy como alternativa caso o corsproxy esteja bloqueando
       const azureUrl = `https://dev.azure.com/${AZURE_DEVOPS_ORG}/${AZURE_DEVOPS_PROJECT}/_apis/pipelines/${PIPELINE_ID}/runs?api-version=7.0`;
       const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(azureUrl);
 
@@ -193,24 +162,33 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json', // <--- Garante que o Azure não envie página HTML
             'Authorization': 'Basic ' + btoa(':' + PAT_TOKEN)
           },
           body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
+        // LÊ O TEXTO BRUTO PRIMEIRO (Evita o erro de JSON)
+        const responseText = await response.text();
+        
+        let data;
+        try {
+          data = JSON.parse(responseText); // Tenta converter para objeto
+        } catch (jsonError) {
+          throw new Error(`O servidor respondeu com formato inválido.\nStatus HTTP: ${response.status}\nResposta Bruta: ${responseText.substring(0, 150)}...`);
+        }
 
         if (response.ok) {
           resultBox.className = 'result-box success active';
           statusText.innerText = '✅ Pipeline acionada com sucesso!';
-          outputData.innerHTML = `ID da Execução: ${data.id}\nStatus: ${data.state}\n\n👉 <a href="${data._links.web.href}" target="_blank" style="color:#15803d; font-weight:bold;">Clique aqui para acompanhar a execução no Azure DevOps</a>`;
+          outputData.innerHTML = `ID: ${data.id}\nStatus: ${data.state}\n👉 <a href="${data._links.web.href}" target="_blank" style="color:#15803d; font-weight:bold;">Acompanhar no Azure</a>`;
         } else {
-          throw new Error(data.message || 'Erro de permissão ou parâmetro na API do Azure DevOps.');
+          throw new Error(`Erro do Azure (${response.status}): ${data.message || JSON.stringify(data)}`);
         }
 
       } catch (error) {
         resultBox.className = 'result-box error active';
-        statusText.innerText = '❌ Erro ao acionar a pipeline!';
+        statusText.innerText = '❌ Falha ao acionar:';
         outputData.innerText = error.message;
       } finally {
         btnSubmit.disabled = false;
