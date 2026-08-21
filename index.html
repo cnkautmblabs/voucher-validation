@@ -11,7 +11,7 @@
     h2 { margin-top: 0; color: #111827; font-size: 1.5rem; margin-bottom: 0.25rem; }
     p.subtitle { color: #6b7280; font-size: 0.875rem; margin-bottom: 1.5rem; }
     
-    .section-title { font-weight: 600; color: #374151; margin-bottom: 0.5rem; font-size: 0.875rem; display: block; }
+    .section-title { font-weight: 600; color: #374151; margin-bottom: 0.5rem; font-size: 0.875rem; display: flex; justify-content: space-between; align-items: center; }
     .radio-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
     .radio-option { display: flex; align-items: center; gap: 0.5rem; background: #f9fafb; border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease; }
     .radio-option:hover { background: #f3f4f6; border-color: #9ca3af; }
@@ -22,9 +22,12 @@
 
     .form-group { margin-bottom: 1.25rem; }
     select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; background-color: #fff; }
-    textarea { resize: vertical; min-height: 90px; }
+    textarea { resize: vertical; min-height: 120px; font-family: monospace; }
     select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
     
+    .counter-badge { background: #e5e7eb; color: #374151; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: bold; }
+    .counter-badge.active { background: #dbeafe; color: #1e40af; }
+
     button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
@@ -83,8 +86,11 @@
       </div>
 
       <div class="form-group">
-        <label for="vouchers" class="section-title">4. Voucher List (paste any format):</label>
-        <textarea id="vouchers" placeholder="VOUCHER1, VOUCHER2&#10;VOUCHER3" required></textarea>
+        <label for="vouchers" class="section-title">
+          4. Voucher List (paste any format):
+          <span id="voucherCount" class="counter-badge">0 identified</span>
+        </label>
+        <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2&#10;VOUCHER3" required></textarea>
       </div>
       
       <button type="submit" id="btnSubmit">Start Instant Validation</button>
@@ -116,17 +122,44 @@
     const resultTitle = document.getElementById('resultTitle');
     const resultContent = document.getElementById('resultContent');
     const btnCopy = document.getElementById('btnCopy');
+    
+    // Elementos do novo contador
+    const txtVouchers = document.getElementById('vouchers');
+    const badgeCount = document.getElementById('voucherCount');
+
+    // Função que processa, limpa e retorna o array de vouchers
+    function getCleanVouchersList(rawText) {
+      const cleanText = rawText.replace(/(\d{3,})([A-Za-z]{2,})/g, '$1 $2');
+      let arr = cleanText.split(/[\s,;]+/).map(v => v.trim()).filter(v => v.length > 5);
+      // Retorna apenas códigos únicos (remove duplicados colados por engano)
+      return [...new Set(arr)];
+    }
+
+    // 1. Atualiza o contador em tempo real ao digitar ou colar
+    txtVouchers.addEventListener('input', () => {
+      const list = getCleanVouchersList(txtVouchers.value);
+      badgeCount.innerText = `${list.length} identified`;
+      if (list.length > 0) {
+        badgeCount.classList.add('active');
+      } else {
+        badgeCount.classList.remove('active');
+      }
+    });
+
+    // 2. Auto-formatação mágica quando o usuário clica fora da caixa de texto (blur)
+    txtVouchers.addEventListener('blur', () => {
+      const list = getCleanVouchersList(txtVouchers.value);
+      if (list.length > 0) {
+        txtVouchers.value = list.join('\n'); // Organiza tudo em "um por linha" automaticamente
+      }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const pais = document.querySelector('input[name="pais"]:checked').value;
       const ambiente = document.getElementById('ambiente').value;
-      const rawText = document.getElementById('vouchers').value;
-      
-      // Separador inteligente: insere espaço entre números e novas letras quando colados grudados
-      const cleanText = rawText.replace(/(\d{3,})([A-Za-z]{2,})/g, '$1 $2');
-      const vouchersList = cleanText.split(/[\s,;]+/).map(v => v.trim()).filter(v => v.length > 5);
+      const vouchersList = getCleanVouchersList(txtVouchers.value);
 
       if (vouchersList.length === 0) {
         alert("No valid vouchers found in the text field.");
@@ -137,8 +170,7 @@
       resultCard.classList.remove('active');
       progressCard.classList.add('active');
 
-      // Processamento em lotes de 30 para respeitar os limites do Cloudflare Worker
-      const chunkSize = 30;
+      const chunkSize = 15;
       const chunks = [];
       for (let i = 0; i < vouchersList.length; i += chunkSize) {
         chunks.push(vouchersList.slice(i, i + chunkSize));
