@@ -26,10 +26,30 @@
     textarea { resize: vertical; min-height: 100px; }
     select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
     
-    button { width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
     
+    /* ANIMAÇÃO DE SPINNER (LOADING) */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 0.8s linear infinite;
+    }
+    .spinner-blue {
+      border: 3px solid #bfdbfe;
+      border-top-color: #2563eb;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .result-box { margin-top: 1.5rem; padding: 1rem; border-radius: 6px; display: none; font-size: 0.875rem; }
     .result-box.active { display: block; }
     .result-box.loading { background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
@@ -106,7 +126,10 @@
         <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2" required></textarea>
       </div>
       
-      <button type="submit" id="btnSubmit">Processar Vouchers</button>
+      <button type="submit" id="btnSubmit">
+        <span id="btnSpinner" class="spinner" style="display: none;"></span>
+        <span id="btnText">Processar Vouchers</span>
+      </button>
     </form>
 
     <div id="resultBox" class="result-box">
@@ -116,14 +139,15 @@
   </div>
 
   <script>
-    // CONFIGURAÇÕES DO AZURE DEVOPS (Preencha aqui):
-    const AZURE_DEVOPS_ORG = "SUA_ORGANIZACAO";
-    const AZURE_DEVOPS_PROJECT = "SEU_PROJETO";
-    const PIPELINE_ID = "SEU_PIPELINE_ID"; // Ex: 12
-    const PAT_TOKEN = "SEU_PAT_TOKEN_AQUI";
+    const AZURE_DEVOPS_ORG = "cinemarkintl";
+    const AZURE_DEVOPS_PROJECT = "WebApp";
+    const PIPELINE_ID = "146";
+    const PAT_TOKEN = "BzYeuhxY3OiQ4bqFFiAp8tUAiJaN0QN4NaFYNhM4eiGeWpHow5uEJQQJ99CHACAAAAAfPvCOAAASAZDO3Zaf";
 
     const form = document.getElementById('voucherForm');
     const btnSubmit = document.getElementById('btnSubmit');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
     const resultBox = document.getElementById('resultBox');
     const statusText = document.getElementById('statusText');
     const outputData = document.getElementById('outputData');
@@ -136,18 +160,19 @@
       const tipoValidacao = document.querySelector('input[name="tipoValidacao"]:checked').value;
       const rawText = document.getElementById('vouchers').value;
       
-      // Converte os vouchers em texto (separados por vírgula ou espaço conforme necessário)
       const vouchersList = rawText.split('\n').map(v => v.trim()).filter(v => v.length > 0).join(',');
 
       if (!vouchersList) return;
 
+      // ATIVA O ESTADO DE LOADING
       btnSubmit.disabled = true;
-      btnSubmit.innerText = 'Disparando Pipeline...';
+      btnSpinner.style.display = 'inline-block';
+      btnText.innerText = 'Disparando Pipeline...';
+      
       resultBox.className = 'result-box loading active';
-      statusText.innerText = `⏳ Executando pipeline para [${pais.toUpperCase()}] em [${ambiente}]...`;
-      outputData.innerText = 'Enviando parâmetros para o Azure DevOps...';
+      statusText.innerHTML = `<span class="spinner spinner-blue"></span> Processando vouchers para [${pais.toUpperCase()}] em [${ambiente}]...`;
+      outputData.innerText = 'Enviando requisição ao Azure DevOps...';
 
-      // ATENÇÃO: As chaves abaixo devem corresponder ao 'name' definido nos parâmetros do seu arquivo YAML no Azure.
       const payload = {
         resources: {
           repositories: {
@@ -155,10 +180,10 @@
           }
         },
         templateParameters: {
-          pais: pais,                       // 'py', 'cl', etc.
-          ambiente: ambiente,               // 'qa' ou 'beta'
-          validacao: tipoValidacao,         // 'candy' ou 'movie'
-          vouchers: vouchersList            // String contendo os vouchers
+          pais: pais,
+          ambiente: ambiente,
+          validacao: tipoValidacao,
+          vouchers: vouchersList
         }
       };
 
@@ -180,9 +205,9 @@
         if (response.ok) {
           resultBox.className = 'result-box success active';
           statusText.innerText = '✅ Pipeline acionada com sucesso!';
-          outputData.innerText = `ID da Execução: ${data.id}\nStatus: ${data.state}\nLink para Acompanhar: ${data._links.web.href}`;
+          outputData.innerHTML = `ID da Execução: ${data.id}\nStatus: ${data.state}\n\n👉 <a href="${data._links.web.href}" target="_blank" style="color:#15803d; font-weight:bold;">Clique aqui para acompanhar a execução no Azure DevOps</a>`;
         } else {
-          throw new Error(data.message || 'Erro ao conectar à API do Azure DevOps.');
+          throw new Error(data.message || 'Erro ao comunicar com a API do Azure DevOps.');
         }
 
       } catch (error) {
@@ -190,8 +215,10 @@
         statusText.innerText = '❌ Erro ao acionar a pipeline!';
         outputData.innerText = error.message;
       } finally {
+        // DESATIVA O ESTADO DE LOADING
         btnSubmit.disabled = false;
-        btnSubmit.innerText = 'Processar Vouchers';
+        btnSpinner.style.display = 'none';
+        btnText.innerText = 'Processar Vouchers';
       }
     });
   </script>
