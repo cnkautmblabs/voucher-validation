@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bulk Voucher Validator</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     body { background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; }
@@ -29,18 +28,13 @@
     button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-    .btn-secondary { background-color: #4b5563; margin-top: 0.75rem; font-size: 0.85rem; padding: 0.4rem; }
-    .btn-secondary:hover { background-color: #374151; }
 
     .progress-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: none; }
     .progress-card.active { display: block; }
-    .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-    .progress-title { font-weight: 600; color: #1e40af; font-size: 0.95rem; }
-    .timer { font-family: monospace; background: #dbeafe; color: #1e40af; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; }
-    
-    .progress-bar-bg { background: #dbeafe; border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 0.75rem; }
-    .progress-bar-fill { background: #2563eb; height: 100%; width: 100%; animation: pulse 1.5s ease-in-out infinite; }
-    @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    .progress-title { font-weight: 600; color: #1e40af; font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .progress-bar-bg { background: #dbeafe; border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 0.5rem; }
+    .progress-bar-fill { background: #2563eb; height: 100%; width: 100%; animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 
     .result-card { margin-top: 1.5rem; padding: 1.25rem; border-radius: 8px; display: none; }
     .result-card.active { display: block; }
@@ -54,13 +48,12 @@
 
   <div class="container">
     <h2>Bulk Voucher Validator</h2>
-    <p class="subtitle">Select the context, paste the vouchers in bulk, and monitor the execution.</p>
+    <p class="subtitle">Select the context, paste vouchers in bulk (any format), and validate instantly.</p>
     
     <form id="voucherForm">
       <div class="form-group">
         <span class="section-title">1. Select the Country:</span>
         <div class="radio-grid">
-          <!-- Sem 'checked' padrão. Adicionado 'required' para forçar a escolha -->
           <label class="radio-option"><input type="radio" name="pais" value="ar" required> <img src="https://flagcdn.com/w40/ar.png" class="flag-img"> Argentina</label>
           <label class="radio-option"><input type="radio" name="pais" value="bo" required> <img src="https://flagcdn.com/w40/bo.png" class="flag-img"> Bolivia</label>
           <label class="radio-option"><input type="radio" name="pais" value="cl" required> <img src="https://flagcdn.com/w40/cl.png" class="flag-img"> Chile</label>
@@ -94,20 +87,13 @@
         <textarea id="vouchers" placeholder="VOUCHER1, VOUCHER2&#10;VOUCHER3" required></textarea>
       </div>
       
-      <button type="submit" id="btnSubmit">Start Validation</button>
+      <button type="submit" id="btnSubmit">Start Instant Validation</button>
     </form>
 
     <div id="progressCard" class="progress-card">
-      <div class="progress-header">
-        <div class="progress-title">⏳ Running automation on Azure...</div>
-        <span id="timer" class="timer">00:00</span>
-      </div>
+      <div class="progress-title">⚡ Validating via Cloudflare Edge...</div>
       <div class="progress-bar-bg"><div class="progress-bar-fill"></div></div>
-      <div style="font-size: 0.8rem; color: #4b5563; display: flex; justify-content: space-between; align-items: center;">
-        <span id="statusDetail">Starting test container...</span>
-        <a id="azureLink" href="#" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">View on Azure ↗</a>
-      </div>
-      <button id="btnCancel" type="button" class="btn-secondary">Cancel On-Screen Tracking</button>
+      <div id="statusDetail" style="font-size: 0.8rem; color: #4b5563;">Processing requests...</div>
     </div>
 
     <div id="resultCard" class="result-card">
@@ -121,157 +107,60 @@
 
   <script>
     const WORKER_URL = "https://proxy-vouchers.cnk-aut-mblabs.workers.dev/";
-    const STORAGE_KEY = "active_voucher_execution";
 
     const form = document.getElementById('voucherForm');
     const btnSubmit = document.getElementById('btnSubmit');
     const progressCard = document.getElementById('progressCard');
     const statusDetail = document.getElementById('statusDetail');
-    const timerElem = document.getElementById('timer');
-    const azureLink = document.getElementById('azureLink');
     const resultCard = document.getElementById('resultCard');
     const resultTitle = document.getElementById('resultTitle');
     const resultContent = document.getElementById('resultContent');
     const btnCopy = document.getElementById('btnCopy');
-    const btnCancel = document.getElementById('btnCancel');
-
-    let pollInterval = null;
-    let timerInterval = null;
-    let startTime = null;
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      if (savedState) {
-        const state = JSON.parse(savedState);
-        resumeExecution(state);
-      }
-    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const pais = document.querySelector('input[name="pais"]:checked').value;
       const ambiente = document.getElementById('ambiente').value;
-      const tipoValidacao = document.querySelector('input[name="tipoValidacao"]:checked').value;
       const rawText = document.getElementById('vouchers').value;
       
-      // Divisão inteligente: separa por vírgula, ponto e vírgula, espaço ou quebra de linha
-      const vouchersList = rawText.split(/[\s,;]+/).map(v => v.trim()).filter(v => v.length > 5).join(',');
+      // Separador inteligente: insere espaço entre números e novas letras quando colados grudados
+      const cleanText = rawText.replace(/(\d{3,})([A-Za-z]{2,})/g, '$1 $2');
+      const vouchersList = cleanText.split(/[\s,;]+/).map(v => v.trim()).filter(v => v.length > 5);
 
-      if (!vouchersList) {
-        alert("Nenhum voucher válido encontrado no campo de texto (mínimo de 6 caracteres).");
+      if (vouchersList.length === 0) {
+        alert("No valid vouchers found in the text field.");
         return;
       }
 
       btnSubmit.disabled = true;
-      hideResults();
-
-      const payload = {
-        resources: { repositories: { self: { refName: 'refs/heads/main' } } },
-        templateParameters: {
-          target_country: pais,
-          target_env: ambiente,
-          voucher_type: tipoValidacao,
-          voucher_list: vouchersList
-        }
-      };
+      resultCard.classList.remove('active');
+      progressCard.classList.add('active');
+      statusDetail.innerText = `Validating ${vouchersList.length} voucher(s)...`;
 
       try {
         const response = await fetch(WORKER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ country: pais, env: ambiente, vouchers: vouchersList })
         });
 
         const data = await response.json();
 
-        if (response.ok) {
-          const state = {
-            runId: data.id,
-            webUrl: data._links.web.href,
-            country: pais,
-            env: ambiente,
-            startTime: Date.now()
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-          resumeExecution(state);
-        } else {
-          const errDetail = data.message || (typeof data === 'object' ? JSON.stringify(data) : data);
-          throw new Error(`Error (${response.status}): ${errDetail}`);
-        }
+        if (!response.ok) throw new Error(data.message || 'Server proxy error.');
+
+        showFinalResult(data.validVouchers);
 
       } catch (error) {
+        showError('Validation Failed', error.message);
+      } finally {
         btnSubmit.disabled = false;
-        showError('Submission Failed', error.message);
+        progressCard.classList.remove('active');
       }
     });
 
-    function resumeExecution(state) {
-      btnSubmit.disabled = true;
-      progressCard.classList.add('active');
-      azureLink.href = state.webUrl;
-      startTime = state.startTime;
-
-      startTimer();
-      pollInterval = setInterval(() => checkStatus(state), 5000);
-      checkStatus(state);
-    }
-
-    async function checkStatus(state) {
-      try {
-        const response = await fetch(`${WORKER_URL}?runId=${state.runId}`);
-        const data = await response.json();
-
-        if (data.state === 'inProgress') {
-          statusDetail.innerText = 'Running Playwright tests on server...';
-        } else if (data.state === 'completed') {
-          clearInterval(pollInterval);
-          clearInterval(timerInterval);
-          statusDetail.innerText = 'Processing and downloading results...';
-
-          if (data.result === 'succeeded' || data.result === 'partiallySucceeded') {
-            await fetchAndDisplayArtifact(state);
-          } else {
-            showError('Execution Failed', `The pipeline finished with status: ${data.result}`);
-            clearState();
-          }
-        }
-      } catch (err) {
-        statusDetail.innerText = 'Waiting for Azure update...';
-      }
-    }
-
-    async function fetchAndDisplayArtifact(state) {
-      const artifactName = `resultado_vouchers_${state.country}_${state.env}`;
-      try {
-        const response = await fetch(`${WORKER_URL}?runId=${state.runId}&artifactName=${artifactName}`);
-        
-        if (!response.ok) throw new Error('The report is not ready for download yet.');
-
-        const blob = await response.arrayBuffer();
-        const zip = await JSZip.loadAsync(blob);
-        
-        let txtContent = "";
-        for (const filename of Object.keys(zip.files)) {
-          if (filename.endsWith('.txt')) {
-            txtContent = await zip.files[filename].async('string');
-            break;
-          }
-        }
-
-        const validVouchers = txtContent.split('\n').map(v => v.trim()).filter(v => v.length > 0);
-        showFinalResult(validVouchers);
-      } catch (error) {
-        showError('Validation Completed with Warning', `Pipeline ran successfully on Azure, but the result file could not be read: ${error.message}`);
-      } finally {
-        clearState();
-      }
-    }
-
     function showFinalResult(vouchers) {
-      progressCard.classList.remove('active');
-      
-      // Inteligência de sucesso ou fracasso dependendo da quantidade de válidos
+      resultCard.classList.add('active');
       if (vouchers.length > 0) {
         resultCard.className = 'result-card active success';
         resultTitle.innerText = `✅ Validation Completed! (${vouchers.length} Valid Vouchers)`;
@@ -291,40 +180,11 @@
     }
 
     function showError(title, message) {
-      progressCard.classList.remove('active');
       resultCard.className = 'result-card active error';
       resultTitle.innerText = `❌ ${title}`;
       resultContent.innerHTML = `<p style="margin:0;">${message}</p>`;
       btnCopy.style.display = 'none';
     }
-
-    function hideResults() {
-      resultCard.classList.remove('active');
-    }
-
-    function startTimer() {
-      if (timerInterval) clearInterval(timerInterval);
-      timerInterval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-        const secs = String(elapsed % 60).padStart(2, '0');
-        timerElem.innerText = `${mins}:${secs}`;
-      }, 1000);
-    }
-
-    function clearState() {
-      localStorage.removeItem(STORAGE_KEY);
-      clearInterval(pollInterval);
-      clearInterval(timerInterval);
-      btnSubmit.disabled = false;
-      progressCard.classList.remove('active');
-    }
-
-    btnCancel.addEventListener('click', () => {
-      if (confirm('Do you want to hide the progress from the screen? The pipeline will continue running on Azure.')) {
-        clearState();
-      }
-    });
   </script>
 </body>
 </html>
