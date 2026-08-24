@@ -79,11 +79,11 @@
       <div class="form-group">
         <span class="section-title">3. What do you want to validate?</span>
         <div class="radio-grid">
-          <label class="radio-option disabled">
-            <input type="radio" name="tipoValidacao" value="movie" disabled> Ticket
+          <label class="radio-option disabled" id="ticketOptionWrapper">
+            <input type="radio" name="tipoValidacao" id="radioTicket" value="movie" disabled> Ticket
           </label>
           <label class="radio-option">
-            <input type="radio" name="tipoValidacao" value="candy" required checked> Candy
+            <input type="radio" name="tipoValidacao" id="radioCandy" value="candy" required checked> Candy
           </label>
         </div>
       </div>
@@ -133,6 +133,25 @@
     const txtVouchers = document.getElementById('vouchers');
     const badgeCount = document.getElementById('voucherCount');
 
+    const radioTicket = document.getElementById('radioTicket');
+    const radioCandy = document.getElementById('radioCandy');
+    const ticketOptionWrapper = document.getElementById('ticketOptionWrapper');
+    const countryRadios = document.querySelectorAll('input[name="pais"]');
+
+    // Controle dinâmico: Habilita Ticket apenas para Paraguay (Piloto)
+    countryRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        if (radio.value === 'py') {
+          radioTicket.disabled = false;
+          ticketOptionWrapper.classList.remove('disabled');
+        } else {
+          radioTicket.disabled = true;
+          ticketOptionWrapper.classList.add('disabled');
+          radioCandy.checked = true; // Volta para Candy se mudar de país
+        }
+      });
+    });
+
     let timerInterval = null;
     let startTime = 0;
 
@@ -175,6 +194,8 @@
         return;
       }
 
+      const tipoValidacao = document.querySelector('input[name="tipoValidacao"]:checked').value;
+
       const vouchersList = getCleanVouchersList(txtVouchers.value);
       if (vouchersList.length === 0) {
         alert("No valid vouchers found in the text field.");
@@ -192,7 +213,8 @@
         liveTimer.innerText = `${elapsed}s`;
       }, 100);
 
-      const chunkSize = 15;
+      // Chunks menores (10) para Tickets para evitar timeout de múltiplas sessões
+      const chunkSize = tipoValidacao === 'movie' ? 10 : 15;
       const chunks = [];
       for (let i = 0; i < vouchersList.length; i += chunkSize) {
         chunks.push(vouchersList.slice(i, i + chunkSize));
@@ -202,12 +224,17 @@
 
       try {
         for (let i = 0; i < chunks.length; i++) {
-          statusDetail.innerText = `Validating batch ${i + 1} of ${chunks.length} (${chunks[i].length} vouchers)...`;
+          statusDetail.innerText = `Validating ${tipoValidacao.toUpperCase()} batch ${i + 1} of ${chunks.length} (${chunks[i].length} vouchers)...`;
 
           const response = await fetch(WORKER_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ country: pais, env: ambiente, vouchers: chunks[i] })
+            body: JSON.stringify({ 
+              country: pais, 
+              env: ambiente, 
+              type: tipoValidacao, 
+              vouchers: chunks[i] 
+            })
           });
 
           const data = await response.json();
