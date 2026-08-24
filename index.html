@@ -138,16 +138,18 @@
     const ticketOptionWrapper = document.getElementById('ticketOptionWrapper');
     const countryRadios = document.querySelectorAll('input[name="pais"]');
 
-    // Controle dinâmico: Habilita Ticket apenas para Paraguay (Piloto)
+    // Habilita a opção 'Ticket' quando for Paraguai ou Bolívia
+    const COUNTRIES_WITH_TICKETS = ['py', 'bo'];
+
     countryRadios.forEach(radio => {
       radio.addEventListener('change', () => {
-        if (radio.value === 'py') {
+        if (COUNTRIES_WITH_TICKETS.includes(radio.value)) {
           radioTicket.disabled = false;
           ticketOptionWrapper.classList.remove('disabled');
         } else {
           radioTicket.disabled = true;
           ticketOptionWrapper.classList.add('disabled');
-          radioCandy.checked = true; // Volta para Candy se mudar de país
+          radioCandy.checked = true; // Volta para Candy caso troque para um país ainda desabilitado
         }
       });
     });
@@ -213,7 +215,6 @@
         liveTimer.innerText = `${elapsed}s`;
       }, 100);
 
-      // Chunks menores (10) para Tickets para evitar timeout de múltiplas sessões
       const chunkSize = tipoValidacao === 'movie' ? 10 : 15;
       const chunks = [];
       for (let i = 0; i < vouchersList.length; i += chunkSize) {
