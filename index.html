@@ -145,14 +145,12 @@
 
     const COUNTRIES_WITH_TICKETS = ['py', 'bo'];
 
-    // Validador de estado do formulário para ativar/desativar o botão
     function checkFormValidity() {
       const hasCountry = document.querySelector('input[name="pais"]:checked') !== null;
       const hasEnv = selectAmbiente.value !== "";
       const vouchers = getCleanVouchersList(txtVouchers.value);
       const hasVouchers = vouchers.length > 0;
 
-      // Habilita o botão somente se todos os critérios forem atendidos
       btnSubmit.disabled = !(hasCountry && hasEnv && hasVouchers);
     }
 
@@ -291,7 +289,7 @@
         if (details) {
           sessionInfoBox.innerHTML = `
             <div class="session-badge">
-              🏛️ ${details.cinema} &nbsp;|&nbsp; 🎬 ${details.movie} &nbsp;|&nbsp; 🎟️ ${details.schedule}
+              🏛️ ${details.cinema} &nbsp;|&nbsp; 🎬 ${details.movie} &nbsp;|&nbsp; 🎫 Sessão: ${details.sessionId} (${details.schedule})
             </div>
           `;
         } else {
