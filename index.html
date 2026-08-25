@@ -28,9 +28,9 @@
     .counter-badge { background: #e5e7eb; color: #374151; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: bold; }
     .counter-badge.active { background: #dbeafe; color: #1e40af; }
 
-    button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    button:hover { background-color: #1d4ed8; }
-    button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    button { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background-color: #2563eb; color: white; border: none; padding: 0.75rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
+    button:hover:not(:disabled) { background-color: #1d4ed8; }
+    button:disabled { background-color: #9ca3af; cursor: not-allowed; opacity: 0.6; }
 
     .progress-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: none; }
     .progress-card.active { display: block; }
@@ -98,7 +98,7 @@
         <textarea id="vouchers" placeholder="VOUCHER1&#10;VOUCHER2&#10;VOUCHER3" required></textarea>
       </div>
       
-      <button type="submit" id="btnSubmit">Start Validation</button>
+      <button type="submit" id="btnSubmit" disabled>Start Validation</button>
     </form>
 
     <div id="progressCard" class="progress-card">
@@ -136,6 +136,7 @@
     
     const txtVouchers = document.getElementById('vouchers');
     const badgeCount = document.getElementById('voucherCount');
+    const selectAmbiente = document.getElementById('ambiente');
 
     const radioTicket = document.getElementById('radioTicket');
     const radioCandy = document.getElementById('radioCandy');
@@ -143,6 +144,17 @@
     const countryRadios = document.querySelectorAll('input[name="pais"]');
 
     const COUNTRIES_WITH_TICKETS = ['py', 'bo'];
+
+    // Validador de estado do formulário para ativar/desativar o botão
+    function checkFormValidity() {
+      const hasCountry = document.querySelector('input[name="pais"]:checked') !== null;
+      const hasEnv = selectAmbiente.value !== "";
+      const vouchers = getCleanVouchersList(txtVouchers.value);
+      const hasVouchers = vouchers.length > 0;
+
+      // Habilita o botão somente se todos os critérios forem atendidos
+      btnSubmit.disabled = !(hasCountry && hasEnv && hasVouchers);
+    }
 
     countryRadios.forEach(radio => {
       radio.addEventListener('change', () => {
@@ -154,8 +166,11 @@
           ticketOptionWrapper.classList.add('disabled');
           radioCandy.checked = true;
         }
+        checkFormValidity();
       });
     });
+
+    selectAmbiente.addEventListener('change', checkFormValidity);
 
     let timerInterval = null;
     let startTime = 0;
@@ -174,6 +189,7 @@
       } else {
         badgeCount.classList.remove('active');
       }
+      checkFormValidity();
     });
 
     txtVouchers.addEventListener('blur', () => {
@@ -181,6 +197,7 @@
       if (list.length > 0) {
         txtVouchers.value = list.join('\n');
       }
+      checkFormValidity();
     });
 
     form.addEventListener('submit', async (e) => {
@@ -193,7 +210,7 @@
       }
       const pais = selectedPais.value;
 
-      const ambiente = document.getElementById('ambiente').value;
+      const ambiente = selectAmbiente.value;
       if (!ambiente) {
         alert("Please select an environment.");
         return;
@@ -260,7 +277,7 @@
         showError('Validation Failed', error.message);
       } finally {
         clearInterval(timerInterval);
-        btnSubmit.disabled = false;
+        checkFormValidity();
         progressCard.classList.remove('active');
       }
     });
@@ -274,7 +291,7 @@
         if (details) {
           sessionInfoBox.innerHTML = `
             <div class="session-badge">
-              🏛️ ${details.cinema} &nbsp;|&nbsp; 🎬 ${details.movie} &nbsp;|&nbsp; 🎫 Sessão: ${details.sessionId} (${details.schedule})
+              🏛️ ${details.cinema} &nbsp;|&nbsp; 🎬 ${details.movie} &nbsp;|&nbsp; 🎟️ ${details.schedule}
             </div>
           `;
         } else {
