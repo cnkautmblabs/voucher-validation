@@ -46,8 +46,6 @@
     .result-card.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
     .result-card.error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
     .result-header { font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
-    
-    .session-badge { background: #dcfce7; border: 1px solid #86efac; color: #14532d; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
     pre.output-box { background: rgba(0, 0, 0, 0.05); padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; font-size: 0.875rem; margin-top: 0.5rem; }
   </style>
 </head>
@@ -115,7 +113,6 @@
         <span id="resultTitle"></span>
         <button id="btnCopy" style="width: auto; padding: 0.25rem 0.75rem; font-size: 0.75rem; display: none;">Copy Valid</button>
       </div>
-      <div id="sessionInfoBox"></div>
       <div id="resultContent"></div>
     </div>
   </div>
@@ -130,7 +127,6 @@
     const liveTimer = document.getElementById('liveTimer');
     const resultCard = document.getElementById('resultCard');
     const resultTitle = document.getElementById('resultTitle');
-    const sessionInfoBox = document.getElementById('sessionInfoBox');
     const resultContent = document.getElementById('resultContent');
     const btnCopy = document.getElementById('btnCopy');
     
@@ -142,6 +138,7 @@
     const ticketOptionWrapper = document.getElementById('ticketOptionWrapper');
     const countryRadios = document.querySelectorAll('input[name="pais"]');
 
+    // Habilita a opção 'Ticket' quando for Paraguai ou Bolívia
     const COUNTRIES_WITH_TICKETS = ['py', 'bo'];
 
     countryRadios.forEach(radio => {
@@ -152,7 +149,7 @@
         } else {
           radioTicket.disabled = true;
           ticketOptionWrapper.classList.add('disabled');
-          radioCandy.checked = true;
+          radioCandy.checked = true; // Volta para Candy caso troque para um país ainda desabilitado
         }
       });
     });
@@ -209,7 +206,6 @@
 
       btnSubmit.disabled = true;
       resultCard.classList.remove('active');
-      sessionInfoBox.innerHTML = '';
       progressCard.classList.add('active');
 
       startTime = Date.now();
@@ -219,14 +215,13 @@
         liveTimer.innerText = `${elapsed}s`;
       }, 100);
 
-      const chunkSize = 15;
+      const chunkSize = tipoValidacao === 'movie' ? 10 : 15;
       const chunks = [];
       for (let i = 0; i < vouchersList.length; i += chunkSize) {
         chunks.push(vouchersList.slice(i, i + chunkSize));
       }
 
       let allValidVouchers = [];
-      let capturedDetails = null;
 
       try {
         for (let i = 0; i < chunks.length; i++) {
@@ -249,12 +244,11 @@
 
           if (data.validVouchers) {
             allValidVouchers = allValidVouchers.concat(data.validVouchers);
-            if (data.details) capturedDetails = data.details;
           }
         }
 
         const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        showFinalResult(allValidVouchers, capturedDetails, totalElapsed);
+        showFinalResult(allValidVouchers, totalElapsed);
 
       } catch (error) {
         showError('Validation Failed', error.message);
@@ -265,22 +259,11 @@
       }
     });
 
-    function showFinalResult(vouchers, details, totalTime) {
+    function showFinalResult(vouchers, totalTime) {
       resultCard.classList.add('active');
       if (vouchers.length > 0) {
         resultCard.className = 'result-card active success';
         resultTitle.innerText = `✅ Validation Completed in ${totalTime}s! (${vouchers.length} Valid Vouchers)`;
-
-        if (details) {
-          sessionInfoBox.innerHTML = `
-            <div class="session-badge">
-              🏛️ ${details.cinema} &nbsp;|&nbsp; 🎬 ${details.movie} &nbsp;|&nbsp; 🎫 Sessão: ${details.sessionId} (${details.schedule})
-            </div>
-          `;
-        } else {
-          sessionInfoBox.innerHTML = '';
-        }
-
         resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Approved vouchers returned:</p><pre class="output-box">${vouchers.join('\n')}</pre>`;
         btnCopy.style.display = 'block';
         btnCopy.onclick = () => {
@@ -290,7 +273,6 @@
         };
       } else {
         resultCard.className = 'result-card active error';
-        sessionInfoBox.innerHTML = '';
         resultTitle.innerText = `⚠️ Validation Completed in ${totalTime}s! (0 Valid Vouchers)`;
         resultContent.innerHTML = `<p style="margin:0;">No valid vouchers found in this run.</p>`;
         btnCopy.style.display = 'none';
@@ -299,7 +281,6 @@
 
     function showError(title, message) {
       resultCard.className = 'result-card active error';
-      sessionInfoBox.innerHTML = '';
       resultTitle.innerText = `❌ ${title}`;
       resultContent.innerHTML = `<p style="margin:0;">${message}</p>`;
       btnCopy.style.display = 'none';
