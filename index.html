@@ -7,7 +7,7 @@
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     body { background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; }
-    .container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; max-width: 620px; }
+    .container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; max-width: 650px; }
     h2 { margin-top: 0; color: #111827; font-size: 1.5rem; margin-bottom: 0.25rem; }
     p.subtitle { color: #6b7280; font-size: 0.875rem; margin-bottom: 1.5rem; }
     
@@ -46,7 +46,7 @@
     .result-card.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
     .result-card.error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
     .result-header { font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
-    pre.output-box { background: rgba(0, 0, 0, 0.05); padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; font-size: 0.875rem; margin-top: 0.5rem; }
+    pre.output-box { background: rgba(0, 0, 0, 0.05); padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; max-height: 250px; overflow-y: auto; font-size: 0.875rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -111,7 +111,7 @@
     <div id="resultCard" class="result-card">
       <div class="result-header">
         <span id="resultTitle"></span>
-        <button id="btnCopy" style="width: auto; padding: 0.25rem 0.75rem; font-size: 0.75rem; display: none;">Copy Valid</button>
+        <button id="btnCopy" style="width: auto; padding: 0.25rem 0.75rem; font-size: 0.75rem; display: none;">Copy All</button>
       </div>
       <div id="resultContent"></div>
     </div>
@@ -138,7 +138,6 @@
     const ticketOptionWrapper = document.getElementById('ticketOptionWrapper');
     const countryRadios = document.querySelectorAll('input[name="pais"]');
 
-    // Habilita a opção 'Ticket' quando for Paraguai ou Bolívia
     const COUNTRIES_WITH_TICKETS = ['py', 'bo'];
 
     countryRadios.forEach(radio => {
@@ -149,7 +148,7 @@
         } else {
           radioTicket.disabled = true;
           ticketOptionWrapper.classList.add('disabled');
-          radioCandy.checked = true; // Volta para Candy caso troque para um país ainda desabilitado
+          radioCandy.checked = true;
         }
       });
     });
@@ -222,6 +221,7 @@
       }
 
       let allValidVouchers = [];
+      let isGrouped = false;
 
       try {
         for (let i = 0; i < chunks.length; i++) {
@@ -244,11 +244,12 @@
 
           if (data.validVouchers) {
             allValidVouchers = allValidVouchers.concat(data.validVouchers);
+            isGrouped = data.isGrouped;
           }
         }
 
         const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        showFinalResult(allValidVouchers, totalElapsed);
+        showFinalResult(allValidVouchers, isGrouped, totalElapsed);
 
       } catch (error) {
         showError('Validation Failed', error.message);
@@ -259,24 +260,47 @@
       }
     });
 
-    function showFinalResult(vouchers, totalTime) {
+    function showFinalResult(vouchers, isGrouped, totalTime) {
       resultCard.classList.add('active');
-      if (vouchers.length > 0) {
-        resultCard.className = 'result-card active success';
-        resultTitle.innerText = `✅ Validation Completed in ${totalTime}s! (${vouchers.length} Valid Vouchers)`;
-        resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Approved vouchers returned:</p><pre class="output-box">${vouchers.join('\n')}</pre>`;
-        btnCopy.style.display = 'block';
-        btnCopy.onclick = () => {
-          navigator.clipboard.writeText(vouchers.join('\n'));
-          btnCopy.innerText = 'Copied!';
-          setTimeout(() => btnCopy.innerText = 'Copy Valid', 2000);
-        };
-      } else {
+      if (vouchers.length === 0) {
         resultCard.className = 'result-card active error';
         resultTitle.innerText = `⚠️ Validation Completed in ${totalTime}s! (0 Valid Vouchers)`;
         resultContent.innerHTML = `<p style="margin:0;">No valid vouchers found in this run.</p>`;
         btnCopy.style.display = 'none';
+        return;
       }
+
+      resultCard.className = 'result-card active success';
+      resultTitle.innerText = `✅ Validation Completed in ${totalTime}s! (${vouchers.length} Valid Vouchers)`;
+
+      let outputText = "";
+
+      if (isGrouped) {
+        // Agrupa por chave única: Cinema - Filme - Sessão/Dia
+        const groups = {};
+        for (const item of vouchers) {
+          const header = `🏛️ ${item.cinema} | 🎬 ${item.movie} | 🎫 Sessão: ${item.session} (${item.day})`;
+          if (!groups[header]) groups[header] = [];
+          groups[header].push(item.code);
+        }
+
+        const blocks = [];
+        for (const [header, list] of Object.entries(groups)) {
+          blocks.push(`${header}\n${list.join('\n')}`);
+        }
+        outputText = blocks.join('\n\n');
+      } else {
+        // Formato simples para Candy
+        outputText = vouchers.map(v => typeof v === 'object' ? v.code : v).join('\n');
+      }
+
+      resultContent.innerHTML = `<p style="margin:0 0 0.5rem 0;">Approved vouchers returned:</p><pre class="output-box">${outputText}</pre>`;
+      btnCopy.style.display = 'block';
+      btnCopy.onclick = () => {
+        navigator.clipboard.writeText(outputText);
+        btnCopy.innerText = 'Copied!';
+        setTimeout(() => btnCopy.innerText = 'Copy All', 2000);
+      };
     }
 
     function showError(title, message) {
